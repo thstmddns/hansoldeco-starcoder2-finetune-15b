@@ -31,7 +31,9 @@ bitsandbytes-0.43.0.dist-info/
 psutil/
 psutil-5.9.8.dist-info/
 tests/
-
+accelerate-0.28.0.dist-info/
+scikit_learn-1.4.1.post1.dist-info/
+scipy-1.12.0.dist-info/
 
 
 # file
