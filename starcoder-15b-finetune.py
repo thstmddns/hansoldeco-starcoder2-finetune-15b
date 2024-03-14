@@ -17,9 +17,14 @@ print(f'Using device : {device}')
 # data preprocessing
 # 데이터 로드
 data = pd.read_csv('data/train.csv')
+quantization_config = BitsAndBytesConfig
+compute_dtype = getattr(torch, 'float16')
 
-
-quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+quantization_config = BitsAndBytesConfig(
+    load_in_8bit=True,
+    bnb_4bit_quant_type='nf4',
+    bnb_4bit_compute_dtype=compute_dtype,
+    bnb_4bit_use_double_quant=False)
 checkpoint = 'bigcode/starcoder2-15b'
 
 
@@ -40,6 +45,8 @@ print('Done.')
 # 모델로드
 model = AutoModelForCausalLM.from_pretrained(checkpoint, quantization_config = quantization_config)
 model.resize_token_embeddings(len(tokenizer)).to(device)
+
+model.config.use_usecache = False
 
 # 모델 학습 하이퍼파라미터(Hyperparameter) 세팅
 # 실제 필요에 따라 조정
