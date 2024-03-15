@@ -43,11 +43,19 @@ for _, row in tqdm(data.iterrows()):
 print('Done.')
 
 # 모델로드
-model = AutoModelForCausalLM.from_pretrained(checkpoint, quantization_config = quantization_config)
+model = AutoModelForCausalLM.from_pretrained(checkpoint, quantization_config = quantization_config, device_map = {'' : 0})
 model.resize_token_embeddings(len(tokenizer)).to(device)
 
 model.config.use_usecache = False
+model.config.pretraining_tp = 1
 
+peft_params = LoraConfig(
+    lora_alpha=16,
+    lora_dropout=0.1,
+    r=64,
+    bias = 'none',
+    task_type='CAUSAL_LM'
+)
 # 모델 학습 하이퍼파라미터(Hyperparameter) 세팅
 # 실제 필요에 따라 조정
 CFG = {
