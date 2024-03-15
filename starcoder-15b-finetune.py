@@ -1,10 +1,12 @@
 import pandas as pd
 import numpy as np
 import torch
-from transformers import AutoTokenizer, AdamW, AutoModelForCausalLM, BitsAndBytesConfig, AutoConfig
+from transformers import AutoTokenizer, AdamW, AutoModelForCausalLM, TrainingArguments, BitsAndBytesConfig, AutoConfig
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer 
 from peft import LoraConfig
+from trl import SFTTrainer
+
 
 
 # cuda 사용여부 확인
@@ -21,7 +23,7 @@ quantization_config = BitsAndBytesConfig
 compute_dtype = getattr(torch, 'float16')
 
 quantization_config = BitsAndBytesConfig(
-    load_in_8bit=True,
+    load_in_4bit=True,
     bnb_4bit_quant_type='nf4',
     bnb_4bit_compute_dtype=compute_dtype,
     bnb_4bit_use_double_quant=False)
@@ -50,12 +52,14 @@ model.config.use_usecache = False
 model.config.pretraining_tp = 1
 
 peft_params = LoraConfig(
-    lora_alpha=16,
-    lora_dropout=0.1,
-    r=64,
-    bias = 'none',
-    task_type='CAUSAL_LM'
+    lora_alpha = 16,
+    lora_dropout = 0.1,
+    r = 64,
+    bias = "none",
+    task_type = "CAUSAL_LM",
 )
+
+
 # 모델 학습 하이퍼파라미터(Hyperparameter) 세팅
 # 실제 필요에 따라 조정
 CFG = {
@@ -65,7 +69,38 @@ CFG = {
 
 # 모델 학습 설정
 optimizer = AdamW(model.parameters(), lr=CFG['LR'])
-model.train()
+
+training_params = TrainingArguments(
+    output_dir="./results",
+    num_train_epochs=4,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=1,
+    optim="paged_adamw_32bit",
+    save_steps=25,
+    logging_steps=25,
+    learning_rate=2e-4,
+    weight_decay=0.001,
+    fp16=False,
+    bf16=False,
+    max_grad_norm=0.3,
+    max_steps=-1,
+    warmup_ratio=0.03,
+    group_by_length=True,
+    lr_scheduler_type="constant",
+    report_to="tensorboard"
+)
+
+trainer = SFTTrainer(
+    model=model,
+    train_dataset = formatted_data,
+    peft_config=peft_params,
+    dataset_text_field="text",
+    max_seq_length=512,
+    tokenizer=tokenizer,
+    args=training_params,
+    packing=False
+)
+trainer.train()
 
 # 모델 학습
 for epoch in range(CFG['EPOCHS']):
